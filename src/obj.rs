@@ -5,7 +5,7 @@ use std::fmt;
 use std::error;
 use std::result;
 
-use nalgebra::Vec3;
+use na::Vec3;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Vertex {

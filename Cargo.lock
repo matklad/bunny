@@ -4,6 +4,7 @@ version = "0.1.0"
 dependencies = [
  "glium 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "nalgebra 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
