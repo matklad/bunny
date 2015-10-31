@@ -1,0 +1,13 @@
+[package]
+name = "bunny"
+version = "0.1.0"
+authors = ["Aleksey Kladov <aleksey.kladov@gmail.com>"]
+license = "MIT"
+
+[dependencies]
+nalgebra = "0.3.0"
+
+[dependencies.glium]
+version = "0.10"
+features = ["nalgebra", "glutin"]
+
