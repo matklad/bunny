@@ -9,7 +9,7 @@ use na::Vec3;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Vertex {
-    position: Vec3<f32>
+    position: Vec3<f32>,
 }
 implement_vertex!(Vertex, position);
 
@@ -22,7 +22,7 @@ impl From<Vec3<f32>> for Vertex {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Normal {
-    normal: Vec3<f32>
+    normal: Vec3<f32>,
 }
 implement_vertex!(Normal, normal);
 
@@ -91,9 +91,9 @@ fn parse_vec(line: &str) -> Result<Vec3<f32>> {
 
 fn parse_face(line: &str) -> Result<Vec<u16>> {
     let verts = try!(line.split_whitespace()
-             .skip(1)
-             .map(parse_index)
-             .collect::<Result<Vec<_>>>());
+                         .skip(1)
+                         .map(parse_index)
+                         .collect::<Result<Vec<_>>>());
 
     if verts.len() != 3 {
         return Err(ObjError::SyntaxError);
@@ -104,9 +104,11 @@ fn parse_face(line: &str) -> Result<Vec<u16>> {
 
 fn parse_index(s: &str) -> Result<u16> {
     let inds = try!(s.split("//")
-                     .map(|i| i.parse::<u16>()
-                               .map(|i| i - 1)
-                               .map_err(|_| ObjError::SyntaxError))
+                     .map(|i| {
+                         i.parse::<u16>()
+                          .map(|i| i - 1)
+                          .map_err(|_| ObjError::SyntaxError)
+                     })
                      .collect::<Result<Vec<_>>>());
     if inds.len() != 2 {
         return Err(ObjError::SyntaxError);
