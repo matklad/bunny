@@ -6,9 +6,10 @@ license = "MIT"
 
 [dependencies]
 nalgebra = "0.3"
-num = "0.1"
+num = "*"
+image = "*"
 
 [dependencies.glium]
-version = "0.10"
+version = "0.12"
 features = ["nalgebra", "glutin"]
 
