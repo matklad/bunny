@@ -95,13 +95,13 @@ impl EventRecorder for MouseTracker {
 }
 
 fn load_skybox_images() -> Vec<RawImage2d<'static, u8>> {
-    let images: Vec<&[u8]> = vec![
-        include_bytes!("./skybox/right.jpg"),
-        include_bytes!("./skybox/left.jpg"),
-        include_bytes!("./skybox/bottom.jpg"),
-        include_bytes!("./skybox/top.jpg"),
-        include_bytes!("./skybox/back.jpg"),
-        include_bytes!("./skybox/front.jpg"),
+    let images = vec![
+        load_asset!("./skybox/right.jpg"),
+        load_asset!("./skybox/left.jpg"),
+        load_asset!("./skybox/bottom.jpg"),
+        load_asset!("./skybox/top.jpg"),
+        load_asset!("./skybox/back.jpg"),
+        load_asset!("./skybox/front.jpg"),
     ];
     let mut result = Vec::new();
     for im in images {
@@ -266,14 +266,12 @@ impl Scene {
     fn draw(&self, view: &na::Mat4<f32>, projection: &na::Mat4<f32>) {
         let mut target = self.display.draw();
         target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
-        let vp = *projection * *view;
 
-        let camera_position = *view * na::to_homogeneous(&self.camera_position);
-        let camera_position: Pnt3<f32> = na::from_homogeneous(&camera_position);
         let uniforms = uniform! {
-            vp: vp,
+            proj: *projection,
+            view: *view,
             light: self.light,
-            camera_position: camera_position,
+            camera_position: self.camera_position,
             skybox: &self.skybox_texture,
         };
 
@@ -310,7 +308,7 @@ fn main() {
     let view: Mat4<f32> = na::to_homogeneous(&{
         let mut transform = Iso3::one();
         transform.look_at_z(&scene.camera_position,
-                            &Pnt3::new(-0.03, -0.1, 0.0),
+                            &Pnt3::new(0.0, 0.0, 0.0),
                             &Vec3::new(0.0, 1.0, 0.0));
         transform
     });
