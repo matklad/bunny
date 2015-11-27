@@ -6,15 +6,21 @@ extern crate image;
 
 use std::env;
 use std::process;
+use std::io::Cursor;
 
-use glium::{glutin, DisplayBuild, Surface, VertexBuffer, IndexBuffer, DrawParameters};
-use glium::glutin::{Event, ElementState, MouseButton};
+use glium::{glutin, DisplayBuild, Surface, VertexBuffer, IndexBuffer, DrawParameters, GlObject};
 use glium::texture::cubemap::Cubemap;
-use glium::backend::glutin_backend::GlutinFacade as Facade;
+use glium::texture::RawImage2d;
+use glium::backend::glutin_backend::GlutinFacade as Display;
+use glium::glutin::{Event, ElementState, MouseButton};
+use glium::glutin::{Window};
+
 use na::{PerspMat3, Iso3, Pnt3, Vec3, BaseFloat, Mat4, UnitQuat, Rotation};
+
 use num::One;
 
 mod obj;
+mod gl;
 
 trait EventRecorder {
     fn record_event(&mut self, event: &Event);
@@ -63,9 +69,28 @@ impl EventRecorder for MouseTracker {
     }
 }
 
+fn load_skybox_images() -> Vec<RawImage2d<'static, u8>> {
+    let images: Vec<&[u8]> = vec![
+        include_bytes!("./skybox/right.jpg"),
+        include_bytes!("./skybox/left.jpg"),
+        include_bytes!("./skybox/bottom.jpg"),
+        include_bytes!("./skybox/top.jpg"),
+        include_bytes!("./skybox/back.jpg"),
+        include_bytes!("./skybox/front.jpg"),
+    ];
+    let mut result = Vec::new();
+    for im in images {
+        let im = image::load(Cursor::new(im), image::JPEG).unwrap().to_rgba();
+
+        let dimension = im.dimensions();
+        result.push(RawImage2d::from_raw_rgba_reversed(im.into_raw(), dimension))
+    }
+    result
+}
+
 struct Scene {
     light: [f32; 3],
-    display: Facade,
+    display: Display,
     draw_parameters: DrawParameters<'static>,
     model_points: VertexBuffer<obj::Vertex>,
     model_normals: VertexBuffer<obj::Normal>,
@@ -104,7 +129,38 @@ impl Scene {
             &model.indices
         ).unwrap();
 
-        let skybox_texture = Cubemap::empty(&display, 1024).unwrap();
+        let skybox_images = load_skybox_images();
+        let skybox_texture = unsafe {
+            let result = Cubemap::empty(&display, 2048).unwrap();
+            let id = result.get_id();
+
+            let gl = {
+                let w = Window::new().unwrap();
+                gl::Gl::load_with(|s| w.get_proc_address(s) as *const _)
+            };
+            display.exec_in_context(|| {
+                gl.ActiveTexture(gl::TEXTURE1);
+                gl.BindTexture(gl::TEXTURE_CUBE_MAP, 0);
+                gl.BindTexture(gl::TEXTURE_CUBE_MAP, id);
+                for (i, im) in skybox_images.into_iter().enumerate() {
+                    let bind_point = gl::TEXTURE_CUBE_MAP_POSITIVE_X + i as u32;
+                    gl.TexSubImage2D(bind_point, 0, 0, 0,
+                                     im.width as i32, im.height as i32,
+                                     gl::RGBA, gl::UNSIGNED_BYTE,
+                                     im.data.as_ptr() as *const _);
+                }
+
+                gl.TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+                gl.TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+                gl.TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+                gl.TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+                gl.TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_WRAP_R, gl::CLAMP_TO_EDGE as i32);
+                gl.BindTexture(gl::TEXTURE_CUBE_MAP, 0);
+            });
+
+            result
+        };
+
 
         let params = DrawParameters {
             depth: glium::Depth {
@@ -112,7 +168,7 @@ impl Scene {
                 write: true,
                 ..Default::default()
             },
-            polygon_mode: glium::draw_parameters::PolygonMode::Line,
+            polygon_mode: glium::draw_parameters::PolygonMode::Fill,
             backface_culling: glium::draw_parameters::BackfaceCullingMode::CullClockwise,
             ..Default::default()
         };
@@ -208,6 +264,7 @@ impl Scene {
 
 
 fn main() {
+    println!("Hello");
     let args: Vec<_> = env::args().collect();
     if args.len() != 2 {
         println!("Usage: bunny model.obj");
@@ -230,6 +287,7 @@ fn main() {
 
     let mut mouse_tracker = MouseTracker::new();
     let mut rot = UnitQuat::new(Vec3::new(0.0, 0.0, 0.0));
+    println!("start loop");
     loop {
         for ev in scene.display.poll_events() {
             mouse_tracker.record_event(&ev);
@@ -248,11 +306,12 @@ fn main() {
 
 }
 
-fn build_display() -> Facade {
+fn build_display() -> Display {
     glutin::WindowBuilder::new()
         .with_dimensions(800, 800)
         .with_depth_buffer(24)
         .with_gl_profile(glutin::GlProfile::Core)
+//        .build_glium_debug(glium::debug::DebugCallbackBehavior::PrintAll)
         .build_glium()
         .unwrap()
 }
