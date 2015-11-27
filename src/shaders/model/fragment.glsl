@@ -28,5 +28,5 @@ void main()
                  1.0);*/
     vec3 view = normalize(v_position - camera_position);
     vec3 refl = reflect(view, normalize(v_normal));
-    color = texture(skybox, -v_normal);
+    color = texture(skybox, -refl);
 }

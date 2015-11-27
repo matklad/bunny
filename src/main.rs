@@ -15,7 +15,7 @@ use glium::backend::glutin_backend::GlutinFacade as Display;
 use glium::glutin::{Event, ElementState, MouseButton};
 use glium::glutin::{Window};
 
-use na::{PerspMat3, Iso3, Pnt3, Vec3, BaseFloat, Mat4, UnitQuat, Rotation};
+use na::{PerspMat3, Iso3, Pnt3, Vec3, BaseFloat, Mat4, UnitQuat, Rotation, FromHomogeneous};
 
 use num::One;
 
@@ -268,10 +268,12 @@ impl Scene {
         target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
         let vp = *projection * *view;
 
+        let camera_position = *view * na::to_homogeneous(&self.camera_position);
+        let camera_position: Pnt3<f32> = na::from_homogeneous(&camera_position);
         let uniforms = uniform! {
             vp: vp,
             light: self.light,
-            camera_position: self.camera_position,
+            camera_position: camera_position,
             skybox: &self.skybox_texture,
         };
 
