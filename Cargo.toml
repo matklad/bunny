@@ -13,3 +13,5 @@ image = "*"
 version = "0.12"
 features = ["nalgebra", "glutin"]
 
+[features]
+dyn_assets = []

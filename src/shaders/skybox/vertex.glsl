@@ -4,10 +4,10 @@ in vec3 position;
 
 out vec3 sky_coords;
 
-uniform mat4 mvp;
+uniform mat4 vp;
 
 void main()
 {
-    gl_Position = mvp * vec4(position, 1);
+    gl_Position = vp * vec4(position, 1);
     sky_coords = -position;
 }

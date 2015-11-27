@@ -22,6 +22,31 @@ use num::One;
 mod obj;
 mod gl;
 
+#[cfg(feature = "dyn_assets")]
+macro_rules! load_asset {
+    ($x:expr) => (read_asset(concat!("./src/", $x)));
+}
+
+#[cfg(not(feature = "dyn_assets"))]
+macro_rules! load_asset {
+    ($x:expr) => (include_bytes!($x));
+}
+
+macro_rules! load_asset_str {
+    ($x:expr) => (String::from_utf8_lossy(load_asset!($x).as_ref()));
+}
+
+#[cfg(feature = "dyn_assets")]
+fn read_asset(path: &str) -> Vec<u8> {
+    use std::fs::File;
+    use std::io::Read;
+
+    let mut file = File::open(path).unwrap();
+    let mut result = Vec::new();
+    file.read_to_end(&mut result).unwrap();
+    result
+}
+
 trait EventRecorder {
     fn record_event(&mut self, event: &Event);
 }
@@ -89,7 +114,8 @@ fn load_skybox_images() -> Vec<RawImage2d<'static, u8>> {
 }
 
 struct Scene {
-    light: [f32; 3],
+    light: Pnt3<f32>,
+    camera_position: Pnt3<f32>,
     display: Display,
     draw_parameters: DrawParameters<'static>,
     model_points: VertexBuffer<obj::Vertex>,
@@ -108,15 +134,15 @@ impl Scene {
 
         let model_program = glium::Program::from_source(
             &display,
-            &include_str!("./shaders/model/vertex.glsl"),
-            &include_str!("./shaders/model/fragment.glsl"),
+            &load_asset_str!("./shaders/model/vertex.glsl"),
+            &load_asset_str!("./shaders/model/fragment.glsl"),
             None,
         ).unwrap();
 
         let skybox_program = glium::Program::from_source(
             &display,
-            &include_str!("./shaders/skybox/vertex.glsl"),
-            &include_str!("./shaders/skybox/fragment.glsl"),
+            &load_asset_str!("./shaders/skybox/vertex.glsl"),
+            &load_asset_str!("./shaders/skybox/fragment.glsl"),
             None,
         ).unwrap();
 
@@ -222,7 +248,8 @@ impl Scene {
 
 
         Scene {
-            light: [1.0, -1.0, 1.0f32],
+            light: Pnt3::new(1.0, -1.0, 1.0f32),
+            camera_position: Pnt3::new(-0.03, -0.1, 0.4),
             display: display,
             draw_parameters: params,
             model_points: model_points,
@@ -236,13 +263,15 @@ impl Scene {
         }
     }
 
-    fn draw(&self, mvp: na::Mat4<f32>) {
+    fn draw(&self, view: &na::Mat4<f32>, projection: &na::Mat4<f32>) {
         let mut target = self.display.draw();
         target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
+        let vp = *projection * *view;
 
         let uniforms = uniform! {
-            mvp: mvp,
-            u_light: self.light,
+            vp: vp,
+            light: self.light,
+            camera_position: self.camera_position,
             skybox: &self.skybox_texture,
         };
 
@@ -264,7 +293,6 @@ impl Scene {
 
 
 fn main() {
-    println!("Hello");
     let args: Vec<_> = env::args().collect();
     if args.len() != 2 {
         println!("Usage: bunny model.obj");
@@ -279,7 +307,7 @@ fn main() {
     let proj = PerspMat3::<f32>::new(1.0, f32::pi() / 4.0, 0.1, 100.0);
     let view: Mat4<f32> = na::to_homogeneous(&{
         let mut transform = Iso3::one();
-        transform.look_at_z(&Pnt3::new(-0.03, -0.1, 0.4),
+        transform.look_at_z(&scene.camera_position,
                             &Pnt3::new(-0.03, -0.1, 0.0),
                             &Vec3::new(0.0, 1.0, 0.0));
         transform
@@ -287,7 +315,6 @@ fn main() {
 
     let mut mouse_tracker = MouseTracker::new();
     let mut rot = UnitQuat::new(Vec3::new(0.0, 0.0, 0.0));
-    println!("start loop");
     loop {
         for ev in scene.display.poll_events() {
             mouse_tracker.record_event(&ev);
@@ -299,9 +326,9 @@ fn main() {
         let (dx, dy) = mouse_tracker.drag_amount();
         rot = rot.append_rotation(&Vec3::new(dy, dx, 0.0));
         let rot = na::to_homogeneous(&rot.to_rot());
-        let mvp: na::Mat4<f32> = *proj.as_mat() * view * rot;
+        let view = view * rot;
 
-        scene.draw(mvp);
+        scene.draw(&view, proj.as_mat());
     }
 
 }
